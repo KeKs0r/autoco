@@ -1,0 +1,17 @@
+{
+  "name": "autoco",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^1.0.7",
+    "ai": "^4.0.12",
+    "simple-git": "^3.27.0",
+    "zod": "^3.23.8"
+  }
+}
