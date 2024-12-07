@@ -19,7 +19,7 @@ export async function generateCommits({
     gitmoji: config.ACO_GITMOJI ?? false,
     diff,
   });
-  const { object } = await generateObject({
+  const { object, usage } = await generateObject({
     model: openai("gpt-4o"),
     // schemaName: "Commit Commands",
     // schemaDescription: "A list of inputs for a git commit command",
@@ -32,5 +32,6 @@ export async function generateCommits({
     prompt: diff,
   });
 
+  console.log(usage);
   return object.commits;
 }
