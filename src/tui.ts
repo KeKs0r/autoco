@@ -1,12 +1,18 @@
 import { log } from "@clack/prompts";
+import color from "picocolors";
 import type { CommitInput } from "./git";
+
+const S_BAR = "│";
 
 export function renderCommits(commits: CommitInput[]) {
   for (const commit of commits) {
-    log.message(commit.message);
+    const m = commit.message;
+    log.message(m);
     for (const file of commit.files) {
-      console.log("│", "    " + file);
+      console.log(
+        color.gray(S_BAR),
+        m.includes(":") ? "     " : "    " + color.dim(file)
+      );
     }
-    log.message("  ");
   }
 }
