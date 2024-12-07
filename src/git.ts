@@ -5,8 +5,10 @@ import { z } from "zod";
 const g = simpleGit();
 
 export const CommitInputSchema = z.object({
-  message: z.string(),
-  files: z.array(z.string()),
+  message: z.string().describe("The generated commit message"),
+  files: z
+    .array(z.string())
+    .describe("The files for which the message should be used"),
 });
 
 export type CommitInput = z.infer<typeof CommitInputSchema>;
