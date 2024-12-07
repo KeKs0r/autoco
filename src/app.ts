@@ -22,6 +22,7 @@ export async function runApp() {
   const shouldCommit = await confirm({
     message: "Do you want to commit?",
   });
+  console.log("ShouldCommit", shouldCommit);
   if (shouldCommit) {
     await commitFiles(commits);
   } else {
