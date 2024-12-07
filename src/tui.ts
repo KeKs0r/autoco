@@ -1,11 +1,12 @@
+import { log } from "@clack/prompts";
 import type { CommitInput } from "./git";
 
 export function renderCommits(commits: CommitInput[]) {
   for (const commit of commits) {
-    console.log(commit.message);
+    log.message(commit.message);
     for (const file of commit.files) {
-      console.log("         ", file);
+      console.log("│", "    " + file);
     }
-    console.log("  ");
+    log.message("  ");
   }
 }

@@ -8,16 +8,9 @@ const color = new Chalk();
 
 export async function runApp() {
   intro("Comitting your changes");
-  log.info("Info!");
-  log.success("Success!");
-  log.step("Step!");
-  log.warn("Warn!");
-  log.error("Error!");
-  log.message("Hello, World", { symbol: color.cyan("~") });
   const status = await getStatus();
   if (status.isClean()) {
-    console.log("Everything is clean, nothing to commmit");
-    console.log(status);
+    outro("Everything is clean, nothing to commmit");
     return;
   }
   const diff = await getDiff();
