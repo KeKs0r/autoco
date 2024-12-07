@@ -8,7 +8,7 @@ const LOG_LEVELS = {
   fatal: 60,
 };
 
-const CURRENT_LOG_LEVEL = process.env["LOG_LEVEL"] || "debug";
+const CURRENT_LOG_LEVEL = process.env["LOG_LEVEL"] || "warn";
 
 export const logger = {
   trace: makeLogFunction("trace"),
