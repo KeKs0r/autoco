@@ -2,7 +2,7 @@ import { parseArgs } from "util";
 import { runApp } from "./app";
 
 export async function run() {
-  const { values, positionals } = parseArgs({
+  const {} = parseArgs({
     args: Bun.argv,
     // options: {
     //   flag1: {
@@ -16,8 +16,8 @@ export async function run() {
     allowPositionals: true,
   });
 
-  console.log(values);
-  console.log(positionals);
+  // console.log(values);
+  // console.log(positionals);
 
   await runApp();
 }
