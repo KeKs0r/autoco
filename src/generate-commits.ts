@@ -32,6 +32,5 @@ export async function generateCommits({
     prompt: diff,
   });
 
-  console.log(usage);
   return object.commits;
 }
