@@ -2,7 +2,7 @@ import { log } from "@clack/prompts";
 import color from "picocolors";
 import type { CommitInput } from "./git";
 
-const S_BAR = "│";
+export const S_BAR = "│";
 
 export function renderCommits(commits: CommitInput[]) {
   for (const commit of commits) {
