@@ -61,11 +61,3 @@ export async function getGitRootFromPWD() {
   }
   return pwd;
 }
-
-export async function commitFiles(commits: CommitInput[]) {
-  const g = await getGit();
-  for (const commit of commits) {
-    await g.add(commit.files);
-    await g.commit(commit.message, commit.files, {});
-  }
-}

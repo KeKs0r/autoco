@@ -1,10 +1,11 @@
 import { confirm, spinner, intro, outro, isCancel } from "@clack/prompts";
 
 import { generateCommits } from "./steps/generate-commits";
-import { commitFiles, getDiff, getGit, getStatus } from "./git";
+import { getDiff, getGit, getStatus } from "./git";
 import { renderCommits } from "./tui";
 import { stringLengthToBytes } from "./util";
 import { addMissingFiles } from "./steps/add-missing";
+import { commitFiles } from "./steps/commit-files";
 
 export async function runApp() {
   // console.log(process.env["PWD"]);
@@ -48,7 +49,7 @@ export async function runApp() {
     return;
   }
 
-  await commitFiles(commits);
+  await commitFiles(commits, status);
 
   await (await getGit()).push();
   outro("Pushed changes");
