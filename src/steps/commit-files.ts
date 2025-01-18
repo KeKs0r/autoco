@@ -13,17 +13,24 @@ export async function commitFiles(
   }
 }
 
+/**
+ * @TODO: renamed files only add new file, dont delete old one
+ */
 function cleanRenamedFiles(
   commits: CommitInput[],
   status: StatusResult
 ): CommitInput[] {
-  return commits.map((commit) => {
-    return {
-      ...commit,
-      files: commit.files.map((file) => {
-        const renamed = status.renamed.find((r) => r.from === file);
-        return renamed ? renamed.to : file;
-      }),
-    };
-  });
+  return commits
+    .map((commit) => {
+      return {
+        ...commit,
+        files: commit.files
+          .map((file) => {
+            const renamed = status.renamed.find((r) => r.from === file);
+            return renamed ? renamed.to : file;
+          })
+          .filter((file) => !status.deleted.includes(file)),
+      };
+    })
+    .filter((a) => a.files.length > 0);
 }
