@@ -8,7 +8,20 @@ export async function commitFiles(
   const g = await getGit();
   const cleaned = cleanRenamedFiles(commits, status);
   for (const commit of cleaned) {
-    await g.add(commit.files);
+    // For deleted files, we need to use git rm
+    const deletedFiles = commit.files.filter((file) =>
+      status.deleted.includes(file)
+    );
+    const otherFiles = commit.files.filter(
+      (file) => !status.deleted.includes(file)
+    );
+
+    if (deletedFiles.length > 0) {
+      await g.rm(deletedFiles);
+    }
+    if (otherFiles.length > 0) {
+      await g.add(otherFiles);
+    }
     await g.commit(commit.message, commit.files, {});
   }
 }
@@ -24,12 +37,10 @@ function cleanRenamedFiles(
     .map((commit) => {
       return {
         ...commit,
-        files: commit.files
-          .map((file) => {
-            const renamed = status.renamed.find((r) => r.from === file);
-            return renamed ? renamed.to : file;
-          })
-          .filter((file) => !status.deleted.includes(file)),
+        files: commit.files.map((file) => {
+          const renamed = status.renamed.find((r) => r.from === file);
+          return renamed ? renamed.to : file;
+        }),
       };
     })
     .filter((a) => a.files.length > 0);
