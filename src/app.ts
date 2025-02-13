@@ -7,7 +7,11 @@ import { stringLengthToBytes } from "./util";
 import { addMissingFiles } from "./steps/add-missing";
 import { commitFiles } from "./steps/commit-files";
 
-export async function runApp() {
+export interface RunAppOptions {
+  force?: boolean;
+}
+
+export async function runApp({ force = false }: RunAppOptions = {}) {
   // console.log(process.env["PWD"]);
   intro("Comitting your changes");
   const status = await getStatus();
@@ -38,15 +42,18 @@ export async function runApp() {
   s.stop("Generated commits");
 
   renderCommits(commits);
-  const shouldCommit = await confirm({
-    message: "Do you want to commit?",
-  });
-  if (isCancel(shouldCommit)) {
-    outro("Cancelled");
-    return;
-  } else if (!shouldCommit) {
-    outro("not done anything");
-    return;
+
+  if (!force) {
+    const shouldCommit = await confirm({
+      message: "Do you want to commit?",
+    });
+    if (isCancel(shouldCommit)) {
+      outro("Cancelled");
+      return;
+    } else if (!shouldCommit) {
+      outro("not done anything");
+      return;
+    }
   }
 
   await commitFiles(commits, status);

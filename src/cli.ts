@@ -2,8 +2,15 @@ import { parseArgs } from "util";
 import { runApp } from "./app";
 
 export async function run() {
-  // console.log(values);
-  // console.log(positionals);
+  const { values } = parseArgs({
+    options: {
+      force: {
+        type: "boolean",
+        short: "f",
+        default: false,
+      },
+    },
+  });
 
-  await runApp();
+  await runApp({ force: values.force });
 }
