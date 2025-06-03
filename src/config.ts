@@ -16,6 +16,14 @@ export const EnvSchema = z
       .transform((v) =>
         v === "undefined" ? undefined : v === "null" ? undefined : v,
       ),
+    ACO_ANTHROPIC_API_KEY: z
+      .string()
+      .transform((v) =>
+        v === "undefined" ? undefined : v === "null" ? undefined : v,
+      ),
+    ACO_PROVIDER: z
+      .enum(["openai", "anthropic"])
+      .default("openai"),
   })
   .partial();
 
@@ -23,6 +31,7 @@ type Env = z.infer<typeof EnvSchema>;
 
 const DEFAULT_CONFIG: Partial<Env> = {
   ACO_GITMOJI: true,
+  ACO_PROVIDER: "openai",
 };
 
 /**
@@ -96,10 +105,19 @@ function parseEnvString(input: string) {
 
 function validateConfig(config: Env) {
   let error = false;
-  if (!config.ACO_OPENAI_API_KEY) {
+  
+  const provider = config.ACO_PROVIDER || "openai";
+  
+  if (provider === "openai" && !config.ACO_OPENAI_API_KEY) {
     error = true;
-    logger.error("You need to provide your openapi key (ACO_OPENAI_API_KEY)");
+    logger.error("You need to provide your OpenAI API key (ACO_OPENAI_API_KEY) when using OpenAI provider");
   }
+  
+  if (provider === "anthropic" && !config.ACO_ANTHROPIC_API_KEY) {
+    error = true;
+    logger.error("You need to provide your Anthropic API key (ACO_ANTHROPIC_API_KEY) when using Anthropic provider");
+  }
+  
   if (error) {
     throw new Error("Configuration invalid, see previous logs for details");
   }

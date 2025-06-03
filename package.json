@@ -13,6 +13,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^1.2.12",
     "@ai-sdk/openai": "^1.0.7",
     "@clack/prompts": "^0.8.2",
     "ai": "^4.0.12",
