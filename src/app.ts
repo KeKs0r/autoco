@@ -1,7 +1,7 @@
 import { confirm, spinner, intro, outro, isCancel } from "@clack/prompts";
 
 import { generateCommits } from "./steps/generate-commits";
-import { getDiff, getGit, getStatus } from "./git";
+import { getDiff, getDiffForAI, getGit, getStatus } from "./git";
 import { renderCommits } from "./tui";
 import { stringLengthToBytes } from "./util";
 import { addMissingFiles } from "./steps/add-missing";
@@ -48,18 +48,18 @@ export async function runApp({ force = false }: RunAppOptions = {}) {
 
   const dSpinner = spinner();
   dSpinner.start("Getting diff...");
-  const diff = await getDiff({
+  const diffForAI = await getDiffForAI({
     staged: true, // Always use staged diff since we stage everything above
   });
-  dSpinner.stop(`Got diff (${stringLengthToBytes(diff.length)})`);
+  dSpinner.stop(`Got diff (${stringLengthToBytes(diffForAI.length)})`);
 
-  if (!diff.length) {
+  if (!diffForAI.length) {
     outro("No diff, exit");
     return;
   }
   const s = spinner();
   s.start("Generating commits...");
-  const commits = await generateCommits({ diff });
+  const commits = await generateCommits({ diff: diffForAI });
   s.stop("Generated commits");
 
   renderCommits(commits);

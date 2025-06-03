@@ -37,7 +37,11 @@ function isTruthy(value: string | null): value is string {
 
 export async function getDiff(options?: DiffOptions) {
   const g = await getGit();
-  const rawDiff = await g.diff([options?.staged ? "--cached" : null].filter(isTruthy));
+  return g.diff([options?.staged ? "--cached" : null].filter(isTruthy));
+}
+
+export async function getDiffForAI(options?: DiffOptions) {
+  const rawDiff = await getDiff(options);
   return filterLockFiles(rawDiff);
 }
 
