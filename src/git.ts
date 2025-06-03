@@ -40,6 +40,38 @@ export async function getDiff(options?: DiffOptions) {
   return g.diff([options?.staged ? "--cached" : null].filter(isTruthy));
 }
 
+export async function getDiffForAI(options?: DiffOptions) {
+  const rawDiff = await getDiff(options);
+  return filterLockFiles(rawDiff);
+}
+
+function filterLockFiles(diff: string): string {
+  // Common lock file patterns
+  const lockFilePatterns = [
+    /^diff --git a\/.*\.lock b\/.*\.lock$/gm,
+    /^diff --git a\/package-lock\.json b\/package-lock\.json$/gm,
+    /^diff --git a\/yarn\.lock b\/yarn\.lock$/gm,
+    /^diff --git a\/pnpm-lock\.yaml b\/pnpm-lock\.yaml$/gm,
+    /^diff --git a\/bun\.lockb b\/bun\.lockb$/gm,
+    /^diff --git a\/Pipfile\.lock b\/Pipfile\.lock$/gm,
+    /^diff --git a\/poetry\.lock b\/poetry\.lock$/gm,
+    /^diff --git a\/Cargo\.lock b\/Cargo\.lock$/gm,
+    /^diff --git a\/composer\.lock b\/composer\.lock$/gm,
+  ];
+
+  let filteredDiff = diff;
+  
+  // For each lock file pattern, remove the entire diff section
+  for (const pattern of lockFilePatterns) {
+    filteredDiff = filteredDiff.replace(new RegExp(
+      `(${pattern.source}).*?(?=^diff --git|$)`, 
+      'gms'
+    ), '');
+  }
+  
+  return filteredDiff.trim();
+}
+
 export async function isInGitRepo(git: SimpleGit) {
   return git.checkIsRepo(CheckRepoActions.IN_TREE);
 }

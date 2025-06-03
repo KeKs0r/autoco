@@ -8,39 +8,75 @@ export async function commitFiles(
   const g = await getGit();
   const cleaned = cleanRenamedFiles(commits, status);
   for (const commit of cleaned) {
-    // For deleted files, we need to use git rm
+    // Categorize files by their status
     const deletedFiles = commit.files.filter((file) =>
       status.deleted.includes(file)
     );
+    const renamedFromFiles = commit.files.filter((file) =>
+      status.renamed.some((r) => r.from === file)
+    );
+    const renamedToFiles = commit.files.filter((file) =>
+      status.renamed.some((r) => r.to === file)
+    );
     const otherFiles = commit.files.filter(
-      (file) => !status.deleted.includes(file)
+      (file) => 
+        !status.deleted.includes(file) && 
+        !status.renamed.some((r) => r.from === file || r.to === file)
     );
 
+    // Handle deleted files
     if (deletedFiles.length > 0) {
       await g.rm(deletedFiles);
     }
-    if (otherFiles.length > 0) {
-      await g.add(otherFiles);
+    
+    // Handle renamed files (remove old, add new)
+    if (renamedFromFiles.length > 0) {
+      await g.rm(renamedFromFiles);
     }
+    if (renamedToFiles.length > 0) {
+      await g.add(renamedToFiles);
+    }
+    
+    // Handle other files (normal add, skip ignored files)
+    if (otherFiles.length > 0) {
+      for (const file of otherFiles) {
+        try {
+          await g.add(file);
+        } catch (error) {
+          // Skip files that are ignored by .gitignore
+          if (error.message?.includes('ignored by one of your .gitignore files')) {
+            continue;
+          }
+          throw error;
+        }
+      }
+    }
+    
     await g.commit(commit.message, commit.files, {});
   }
 }
 
-/**
- * @TODO: renamed files only add new file, dont delete old one
- */
 function cleanRenamedFiles(
   commits: CommitInput[],
   status: StatusResult
 ): CommitInput[] {
   return commits
     .map((commit) => {
+      const updatedFiles: string[] = [];
+      
+      for (const file of commit.files) {
+        const renamed = status.renamed.find((r) => r.from === file);
+        if (renamed) {
+          // For renamed files, we need to stage both the removal of old file and addition of new file
+          updatedFiles.push(renamed.from, renamed.to);
+        } else {
+          updatedFiles.push(file);
+        }
+      }
+      
       return {
         ...commit,
-        files: commit.files.map((file) => {
-          const renamed = status.renamed.find((r) => r.from === file);
-          return renamed ? renamed.to : file;
-        }),
+        files: [...new Set(updatedFiles)], // Remove duplicates
       };
     })
     .filter((a) => a.files.length > 0);
