@@ -21,14 +21,35 @@ export async function runApp({ force = false }: RunAppOptions = {}) {
     return;
   }
 
+  // Stage all changes to ensure everything is included
+  const g = await getGit();
+  
   if (status.not_added.length) {
     await addMissingFiles(status.not_added);
+  }
+
+  // Stage modified files
+  if (status.modified.length > 0) {
+    await g.add(status.modified);
+  }
+
+  // Stage deleted files 
+  if (status.deleted.length > 0) {
+    await g.rm(status.deleted);
+  }
+
+  // Handle renamed files (stage both old and new)
+  if (status.renamed.length > 0) {
+    for (const rename of status.renamed) {
+      await g.rm(rename.from);
+      await g.add(rename.to);
+    }
   }
 
   const dSpinner = spinner();
   dSpinner.start("Getting diff...");
   const diff = await getDiff({
-    staged: Boolean(status.staged.length) || Boolean(status.not_added.length),
+    staged: true, // Always use staged diff since we stage everything above
   });
   dSpinner.stop(`Got diff (${stringLengthToBytes(diff.length)})`);
 
