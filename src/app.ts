@@ -29,9 +29,19 @@ export async function runApp({ force = false }: RunAppOptions = {}) {
     await addMissingFiles(status.not_added);
   }
 
-  // Stage modified files
+  // Stage modified files (skip ignored files)
   if (status.modified.length > 0) {
-    await g.add(status.modified);
+    for (const file of status.modified) {
+      try {
+        await g.add(file);
+      } catch (error) {
+        // Skip files that are ignored by .gitignore
+        if (error.message?.includes('ignored by one of your .gitignore files')) {
+          continue;
+        }
+        throw error;
+      }
+    }
   }
 
   // Stage deleted files 
@@ -42,8 +52,16 @@ export async function runApp({ force = false }: RunAppOptions = {}) {
   // Handle renamed files (stage both old and new)
   if (status.renamed.length > 0) {
     for (const rename of status.renamed) {
-      await g.rm(rename.from);
-      await g.add(rename.to);
+      try {
+        await g.rm(rename.from);
+        await g.add(rename.to);
+      } catch (error) {
+        // Skip files that are ignored by .gitignore
+        if (error.message?.includes('ignored by one of your .gitignore files')) {
+          continue;
+        }
+        throw error;
+      }
     }
   }
 

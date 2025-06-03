@@ -37,9 +37,19 @@ export async function commitFiles(
       await g.add(renamedToFiles);
     }
     
-    // Handle other files (normal add)
+    // Handle other files (normal add, skip ignored files)
     if (otherFiles.length > 0) {
-      await g.add(otherFiles);
+      for (const file of otherFiles) {
+        try {
+          await g.add(file);
+        } catch (error) {
+          // Skip files that are ignored by .gitignore
+          if (error.message?.includes('ignored by one of your .gitignore files')) {
+            continue;
+          }
+          throw error;
+        }
+      }
     }
     
     await g.commit(commit.message, commit.files, {});
