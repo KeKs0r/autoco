@@ -36,6 +36,9 @@ export async function createTestRepo(): Promise<TestRepo> {
 }
 
 export async function setupModifiedFiles(repoPath: string): Promise<void> {
+  // Create directory structure
+  await mkdir(join(repoPath, 'src'), { recursive: true });
+  
   // Create and commit initial files
   await writeFile(join(repoPath, 'src/app.ts'), 'export function hello() { return "world"; }');
   await writeFile(join(repoPath, 'package.json'), '{"name": "test", "version": "1.0.0"}');
@@ -45,8 +48,8 @@ export async function setupModifiedFiles(repoPath: string): Promise<void> {
   await git.commit('Add initial files');
   
   // Modify files (unstaged changes)
-  await writeFile(join(repoPath, 'src/app.ts'), 'export function hello() { return "updated world"; }');
-  await writeFile(join(repoPath, 'package.json'), '{"name": "test", "version": "1.1.0"}');
+  await writeFile(join(repoPath, 'src/app.ts'), 'export function hello() {\n  return "updated world";\n}');
+  await writeFile(join(repoPath, 'package.json'), '{\n  "name": "test",\n  "version": "1.1.0"\n}');
 }
 
 export async function setupDeletedFiles(repoPath: string): Promise<void> {

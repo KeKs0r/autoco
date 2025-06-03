@@ -40,6 +40,8 @@ test('generates quality commit messages for modified files', withTestRepo(async 
     
     // Get diff and generate commits
     const diff = await getDiffForAI({ staged: true });
+    console.log('Diff length:', diff.length);
+    console.log('Diff preview:', diff.substring(0, 200));
     expect(diff.length).toBeGreaterThan(0);
     
     const commits = await generateCommits({ diff });
@@ -184,11 +186,11 @@ test('end-to-end app workflow with real LLM', withTestRepo(async (repo: TestRepo
     const git = simpleGit(repo.path);
     const log = await git.log();
     
-    // Should have more commits than just the initial ones
-    expect(log.all.length).toBeGreaterThan(2); // initial + our commits
+    // Should have more commits than just the initial one
+    expect(log.all.length).toBeGreaterThan(1); // initial + our commits
     
-    // Get our generated commits (skip initial commits)
-    const generatedCommits = log.all.slice(0, -2);
+    // Get our generated commits (skip initial commit)
+    const generatedCommits = log.all.slice(0, -1);
     
     for (const commit of generatedCommits) {
       const evaluation = evaluateCommitMessage(commit.message);
