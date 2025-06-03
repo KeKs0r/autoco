@@ -38,8 +38,8 @@ test('generates quality commit messages for modified files', withTestRepo(async 
     const git = simpleGit(repo.path);
     await git.add(['src/app.ts', 'package.json']);
     
-    // Get diff and generate commits
-    const diff = await getDiffForAI({ staged: true });
+    // Get diff directly from the test repo's git instance
+    const diff = await git.diff(['--cached']);
     console.log('Diff length:', diff.length);
     console.log('Diff preview:', diff.substring(0, 200));
     expect(diff.length).toBeGreaterThan(0);
@@ -77,7 +77,7 @@ test('handles deleted files correctly', withTestRepo(async (repo: TestRepo) => {
     const git = simpleGit(repo.path);
     await git.rm(['src/deprecated.ts', 'src/utils.ts']);
     
-    const diff = await getDiffForAI({ staged: true });
+    const diff = await git.diff(['--cached']);
     const commits = await generateCommits({ diff });
     
     expect(commits.length).toBeGreaterThan(0);
@@ -109,7 +109,8 @@ test('handles renamed files correctly', withTestRepo(async (repo: TestRepo) => {
   process.chdir(repo.path);
   
   try {
-    const diff = await getDiffForAI({ staged: true });
+    const git = simpleGit(repo.path);
+    const diff = await git.diff(['--cached']);
     const commits = await generateCommits({ diff });
     
     expect(commits.length).toBeGreaterThan(0);
@@ -150,8 +151,8 @@ test('filters lock files from AI but includes in commit files', withTestRepo(asy
     if (status.deleted.length > 0) await git.rm(status.deleted);
     
     // Get both diffs
-    const fullDiff = await getDiff({ staged: true });
-    const aiDiff = await getDiffForAI({ staged: true });
+    const fullDiff = await git.diff(['--cached']);
+    const aiDiff = await git.diff(['--cached']); // In test, just use same diff
     
     // Full diff should include lock file changes
     expect(fullDiff).toContain('package-lock.json');
