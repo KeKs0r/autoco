@@ -75,6 +75,13 @@ Do not mention code line numbers, file names, or raw diff content. Instead, summ
 ### Content Requirements:
 Ensure each commit message accurately reflects the intention and effect of the changes.
 If there are multiple logical groups of changes (and you are allowed multiple commits), create multiple commit messages. If unsure how to split the commits, prioritize logical groupings such as separating bug fixes, new features, refactorings, or documentation updates.
+
+### CRITICAL: File Path Accuracy
+- You MUST only reference file paths that actually appear in the provided diff
+- DO NOT hallucinate, guess, or infer file paths that are not explicitly shown in the diff
+- If a file path in the diff looks similar to a common pattern, use the EXACT path from the diff, not what you think it should be
+- Double-check that every file path in your "files" arrays matches exactly what appears in the diff headers (e.g., "diff --git a/path/to/file b/path/to/file")
+
 Do not provide any additional commentary or reasoning about how you arrived at your answer. Your final response should contain only the resulting commit message(s).
 `;
 

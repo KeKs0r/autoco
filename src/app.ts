@@ -46,7 +46,19 @@ export async function runApp({ force = false }: RunAppOptions = {}) {
 
   // Stage deleted files 
   if (status.deleted.length > 0) {
-    await g.rm(status.deleted);
+    // Process each deleted file individually to handle missing files gracefully
+    for (const file of status.deleted) {
+      try {
+        await g.rm([file]);
+      } catch (error) {
+        // Skip files that don't exist - they may have been manually staged for deletion
+        if (error.message?.includes('pathspec') && error.message?.includes('did not match any files')) {
+          console.warn(`Skipping ${file} - file does not exist`);
+          continue;
+        }
+        throw error;
+      }
+    }
   }
 
   // Handle renamed files (stage both old and new)
@@ -60,6 +72,18 @@ export async function runApp({ force = false }: RunAppOptions = {}) {
         if (error.message?.includes('ignored by one of your .gitignore files')) {
           continue;
         }
+        // Handle files that don't exist in HEAD
+        if (error.message?.includes('pathspec') && error.message?.includes('did not match any files')) {
+          try {
+            await g.add(rename.to);
+          } catch (addError) {
+            if (addError.message?.includes('ignored by one of your .gitignore files')) {
+              continue;
+            }
+            throw addError;
+          }
+          continue;
+        }
         throw error;
       }
     }
@@ -67,22 +91,34 @@ export async function runApp({ force = false }: RunAppOptions = {}) {
 
   const dSpinner = spinner();
   dSpinner.start("Getting diff...");
-  const diffForAI = await getDiffForAI({
+  const diffResult = await getDiffForAI({
     staged: true, // Always use staged diff since we stage everything above
   });
-  dSpinner.stop(`Got diff (${stringLengthToBytes(diffForAI.length)})`);
+  
+  // Create user-friendly message about diff processing
+  let diffMessage = `Got diff (${stringLengthToBytes(diffResult.filteredSize)})`;
+  
+  if (diffResult.excludedFiles.length > 0) {
+    const originalSize = stringLengthToBytes(diffResult.originalSize);
+    const savings = ((diffResult.originalSize - diffResult.filteredSize) / diffResult.originalSize * 100).toFixed(1);
+    diffMessage += ` • Excluded ${diffResult.excludedFiles.length} file(s) (${savings}% reduction from ${originalSize})`;
+  }
+  
+  dSpinner.stop(diffMessage);
 
-  if (!diffForAI.length) {
+  if (!diffResult.diff.length) {
     outro("No diff, exit");
     return;
   }
   const s = spinner();
   s.start("Generating commits...");
-  const commits = await generateCommits({ diff: diffForAI });
-  s.stop("Generated commits");
+  const result = await generateCommits({ diff: diffResult.diff });
+  const providerName = result.provider === "anthropic" ? "Anthropic" : "OpenAI";
+  const fallbackText = result.usedFallback ? ` (Fallback: ${providerName})` : ` (${providerName})`;
+  s.stop(`Generated commits${fallbackText}`);
 
   // Ensure lock files are included in commits even if AI didn't see them in diff
-  const enhancedCommits = await enhanceCommitsWithLockFiles(commits, status);
+  const enhancedCommits = await enhanceCommitsWithLockFiles(result.commits, status);
 
   renderCommits(enhancedCommits);
 
