@@ -8,6 +8,13 @@ const ParsedBoolean = z
   .string()
   .transform((t) => (t === "true" ? true : false));
 
+const ParsedGlobArray = z
+  .union([
+    z.string().transform((s) => s.split(",").map(p => p.trim()).filter(p => p.length > 0)),
+    z.array(z.string())
+  ])
+  .default([]);
+
 export const EnvSchema = z
   .object({
     ACO_GITMOJI: ParsedBoolean,
@@ -24,6 +31,8 @@ export const EnvSchema = z
     ACO_PROVIDER: z
       .enum(["openai", "anthropic"])
       .default("openai"),
+    // TODO: Extract glob patterns and other non-secret config into separate config file
+    ACO_EXCLUDE_CONTENT_GLOBS: ParsedGlobArray,
   })
   .partial();
 
@@ -104,21 +113,24 @@ function parseEnvString(input: string) {
 }
 
 function validateConfig(config: Env) {
-  let error = false;
-  
   const provider = config.ACO_PROVIDER || "openai";
+  const hasOpenAI = !!config.ACO_OPENAI_API_KEY;
+  const hasAnthropic = !!config.ACO_ANTHROPIC_API_KEY;
   
-  if (provider === "openai" && !config.ACO_OPENAI_API_KEY) {
-    error = true;
-    logger.error("You need to provide your OpenAI API key (ACO_OPENAI_API_KEY) when using OpenAI provider");
+  // Check if we have at least one API key
+  if (!hasOpenAI && !hasAnthropic) {
+    logger.error("You need to provide at least one API key:");
+    logger.error("- ACO_OPENAI_API_KEY for OpenAI provider");
+    logger.error("- ACO_ANTHROPIC_API_KEY for Anthropic provider");
+    throw new Error("No API keys configured");
   }
   
-  if (provider === "anthropic" && !config.ACO_ANTHROPIC_API_KEY) {
-    error = true;
-    logger.error("You need to provide your Anthropic API key (ACO_ANTHROPIC_API_KEY) when using Anthropic provider");
+  // Warn if primary provider doesn't have API key (fallback will be used)
+  if (provider === "openai" && !hasOpenAI && hasAnthropic) {
+    logger.warn("Primary provider (OpenAI) not configured, will use Anthropic as fallback");
   }
   
-  if (error) {
-    throw new Error("Configuration invalid, see previous logs for details");
+  if (provider === "anthropic" && !hasAnthropic && hasOpenAI) {
+    logger.warn("Primary provider (Anthropic) not configured, will use OpenAI as fallback");
   }
 }
