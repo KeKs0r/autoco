@@ -1,5 +1,32 @@
 {
   "name": "autoco",
+  "version": "1.0.0",
+  "description": "AI-powered automatic commit message generation using OpenAI GPT-4o or Anthropic Claude",
+  "main": "dist/index.js",
+  "bin": {
+    "autoco": "bin/autoco"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md"
+  ],
+  "keywords": [
+    "git",
+    "commit",
+    "ai",
+    "openai",
+    "anthropic",
+    "automation",
+    "cli"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/keks0r/autoco.git"
+  },
+  "homepage": "https://github.com/keks0r/autoco#readme",
+  "author": "Marc Höffl",
   "module": "index.ts",
   "type": "module",
   "scripts": {
@@ -18,6 +45,7 @@
     "@ai-sdk/openai": "^1.0.7",
     "@clack/prompts": "^0.8.2",
     "ai": "^4.0.12",
+    "minimatch": "^10.0.3",
     "picocolors": "^1.1.1",
     "simple-git": "^3.27.0",
     "zod": "^3.23.8"
