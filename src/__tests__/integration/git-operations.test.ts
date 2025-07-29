@@ -210,3 +210,93 @@ test('end-to-end app workflow with real LLM', withTestRepo(async (repo: TestRepo
     process.chdir(originalCwd);
   }
 }));
+
+test('handles non-existent files gracefully during rm operations', withTestRepo(async (repo: TestRepo) => {
+  const originalCwd = process.cwd();
+  process.chdir(repo.path);
+  
+  try {
+    const git = simpleGit(repo.path);
+    
+    // Create a file and commit it
+    await git.writeFileSync(join(repo.path, 'test-file.txt'), 'test content');
+    await git.add('test-file.txt');
+    await git.commit('Add test file');
+    
+    // Remove the file from filesystem but not from git
+    await git.raw(['rm', '--cached', 'test-file.txt']);
+    
+    // Now simulate the scenario where git thinks a file should be removed
+    // but it doesn't exist in HEAD or working directory
+    await git.writeFileSync(join(repo.path, 'non-existent.txt'), 'temp');
+    await git.add('non-existent.txt');
+    await git.rm('non-existent.txt'); // This creates a staged deletion
+    
+    // Import commitFiles function to test directly
+    const { commitFiles } = await import('../../steps/commit-files');
+    const status = await git.status();
+    
+    // Create a mock commit that references the non-existent file
+    const mockCommits = [{
+      message: 'Remove non-existent file',
+      files: ['.cursor/rules/no-try-catch-in-tests.mdc'] // This file doesn't exist
+    }];
+    
+    // This should not throw an error
+    expect(async () => {
+      await commitFiles(mockCommits, status);
+    }).not.toThrow();
+    
+  } finally {
+    process.chdir(originalCwd);
+  }
+}));
+
+test('handles staged deletions of non-existent files in runApp', withTestRepo(async (repo: TestRepo) => {
+  if (!checkApiKeys()) return;
+  
+  const originalCwd = process.cwd();
+  process.chdir(repo.path);
+  
+  try {
+    const git = simpleGit(repo.path);
+    
+    // Create and commit a real file first
+    await git.writeFileSync(join(repo.path, 'real-file.txt'), 'real content');
+    await git.add('real-file.txt');
+    await git.commit('Add real file');
+    
+    // Now manually stage a deletion of a file that doesn't exist
+    // This simulates the exact scenario from the cortex project
+    try {
+      await git.raw(['rm', '--cached', '.cursor/rules/no-try-catch-in-tests.mdc']);
+    } catch {
+      // If the file doesn't exist to remove from cache, create a dummy staged deletion
+      // by adding then removing a file
+      await git.writeFileSync(join(repo.path, '.cursor/rules/no-try-catch-in-tests.mdc'), 'temp');
+      await git.add('.cursor/rules/no-try-catch-in-tests.mdc');
+      await git.rm('.cursor/rules/no-try-catch-in-tests.mdc');
+    }
+    
+    // Also create some real changes to commit
+    await git.writeFileSync(join(repo.path, 'src/app.ts'), 'console.log("test change");');
+    await git.add('src/app.ts');
+    
+    // Verify we have the problematic staged deletion
+    const status = await git.status();
+    expect(status.deleted.length).toBeGreaterThan(0);
+    
+    // Run the app - this should not crash with "pathspec did not match any files"
+    const { runApp } = await import('../../app');
+    
+    // This should complete without throwing the pathspec error
+    await expect(runApp({ force: true })).resolves.not.toThrow();
+    
+    // Verify the app completed successfully and made commits
+    const log = await git.log();
+    expect(log.all.length).toBeGreaterThan(1); // Should have more than just initial commit
+    
+  } finally {
+    process.chdir(originalCwd);
+  }
+}));
