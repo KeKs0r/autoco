@@ -5,7 +5,8 @@
       "Bash(bun:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(acof)"
+      "Bash(acof)",
+      "Bash(npm run build:*)"
     ],
     "deny": []
   }
