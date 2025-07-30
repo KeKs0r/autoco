@@ -68,6 +68,7 @@ function filterLockFiles(diff: string): string {
     'yarn.lock',
     'pnpm-lock.yaml',
     'bun.lockb',
+    'bun.lock', // Add bun.lock explicitly
     'Pipfile.lock',
     'poetry.lock',
     'Cargo.lock',
