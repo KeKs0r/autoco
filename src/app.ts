@@ -106,7 +106,59 @@ export async function runApp({ force = false }: RunAppOptions = {}) {
   
   dSpinner.stop(diffMessage);
 
+  // Check if we have only lock files
+  const allStagedFiles = Array.from(new Set([
+    ...status.staged,
+    ...status.modified.filter(() => true),
+    ...status.deleted,
+    ...status.renamed.map(r => r.to),
+  ]));
+  
+  const lockFilePatterns = [
+    /.*\.lock$/,
+    /package-lock\.json$/,
+    /yarn\.lock$/,
+    /pnpm-lock\.yaml$/,
+    /bun\.lockb$/,
+    /bun\.lock$/,
+    /Pipfile\.lock$/,
+    /poetry\.lock$/,
+    /Cargo\.lock$/,
+    /composer\.lock$/,
+  ];
+  
+  const stagedLockFiles = allStagedFiles.filter(file =>
+    lockFilePatterns.some(pattern => pattern.test(file))
+  );
+  
   if (!diffResult.diff.length) {
+    // If we have lock files but no diff, create a commit for them
+    if (stagedLockFiles.length > 0) {
+      const lockFileCommit: CommitInput = {
+        message: "🔒 Update lock files",
+        files: stagedLockFiles,
+      };
+      renderCommits([lockFileCommit]);
+      
+      if (!force) {
+        const shouldCommit = await confirm({
+          message: "Do you want to commit?",
+        });
+        if (isCancel(shouldCommit)) {
+          outro("Cancelled");
+          return;
+        } else if (!shouldCommit) {
+          outro("not done anything");
+          return;
+        }
+      }
+      
+      await commitFiles([lockFileCommit], status);
+      await (await getGit()).push();
+      outro("Pushed changes");
+      return;
+    }
+    
     outro("No diff, exit");
     return;
   }
