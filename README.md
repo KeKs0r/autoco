@@ -1,6 +1,6 @@
 # autoco
 
-AI-powered automatic commit message generation using OpenAI GPT-4o or Anthropic Claude.
+AI-powered automatic commit message generation using OpenAI GPT-4o, Anthropic Claude, or Google Gemini.
 
 ## Installation
 
@@ -25,12 +25,13 @@ autoco --force
 Create `.env` in your project root:
 
 ```bash
-# Required: Choose one provider
+# Required: Choose one or more providers
 ACO_OPENAI_API_KEY=your_openai_key
 ACO_ANTHROPIC_API_KEY=your_anthropic_key
+ACO_GOOGLE_GENERATIVE_AI_API_KEY=your_google_key
 
 # Optional settings
-ACO_PROVIDER=openai              # or "anthropic" (default: openai)
+ACO_PROVIDER=openai              # or "anthropic" or "google" (default: openai)
 ACO_GITMOJI=true                 # Use gitmoji in commits (default: false)
 ```
 
@@ -51,7 +52,7 @@ Project `.env` files override global settings.
 - **Smart staging**: Handles modified, deleted, and renamed files
 - **Lock file filtering**: Commits lock files but excludes from AI analysis  
 - **Multiple commits**: Generates logical commit groups for complex changes
-- **Dual AI support**: OpenAI GPT-4o or Anthropic Claude Sonnet
+- **Triple AI support**: OpenAI GPT-4o, Anthropic Claude Sonnet, or Google Gemini 2.0 Flash
 - **Quality validation**: Ensures meaningful commit messages
 
 ---

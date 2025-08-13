@@ -1,5 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { getSystemPrompt } from "../prompts";
@@ -28,6 +29,11 @@ export async function generateCommits({
   // Determine available providers for fallback
   const availableProviders = getAvailableProviders(config);
   
+  if (process.env.DEBUG) {
+    console.log(`Primary provider: ${primaryProvider}`);
+    console.log(`Available providers: ${availableProviders.join(', ')}`);
+  }
+  
   // Try primary provider first, then fallback
   let attemptCount = 0;
   for (const provider of [primaryProvider, ...availableProviders.filter(p => p !== primaryProvider)]) {
@@ -43,7 +49,7 @@ export async function generateCommits({
           prompt: diff,
         });
         return {
-          commits: validateAndCleanCommits(object.commits, diff),
+          commits: validateAndCleanCommits((object as any).commits, diff),
           provider,
           usedFallback: attemptCount > 0
         };
@@ -58,15 +64,35 @@ export async function generateCommits({
           prompt: diff,
         });
         return {
-          commits: validateAndCleanCommits(object.commits, diff),
+          commits: validateAndCleanCommits((object as any).commits, diff),
+          provider,
+          usedFallback: attemptCount > 0
+        };
+      } else if (provider === "google" && config.ACO_GOOGLE_GENERATIVE_AI_API_KEY) {
+        const google = createGoogleGenerativeAI({
+          apiKey: config.ACO_GOOGLE_GENERATIVE_AI_API_KEY,
+        });
+        const { object } = await generateObject({
+          model: google("gemini-2.0-flash-001") as any,
+          schema,
+          system,
+          prompt: diff,
+          mode: 'json',
+        });
+        return {
+          commits: validateAndCleanCommits((object as any).commits, diff),
           provider,
           usedFallback: attemptCount > 0
         };
       }
-    } catch (error) {
+    } catch (error: any) {
       // If this is the last available provider, throw the error
       const isLastProvider = provider === availableProviders[availableProviders.length - 1] ||
                             (availableProviders.length === 1 && provider === primaryProvider);
+      
+      if (process.env.DEBUG) {
+        console.log(`Provider ${provider} failed: ${error.message}`);
+      }
       
       if (isLastProvider) {
         throw error;
@@ -121,6 +147,10 @@ function getAvailableProviders(config: any): string[] {
   
   if (config.ACO_OPENAI_API_KEY) {
     providers.push("openai");
+  }
+  
+  if (config.ACO_GOOGLE_GENERATIVE_AI_API_KEY) {
+    providers.push("google");
   }
   
   return providers;

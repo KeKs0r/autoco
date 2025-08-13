@@ -1,6 +1,7 @@
 import { test, expect, beforeAll } from 'bun:test';
 import { join } from 'path';
 import simpleGit from 'simple-git';
+import { writeFile, mkdir } from 'fs/promises';
 import { 
   createTestRepo, 
   setupModifiedFiles, 
@@ -17,9 +18,8 @@ import { runApp } from '../../app';
 
 // Check if we have API keys for testing
 function checkApiKeys() {
-  if (!process.env.ACO_OPENAI_API_KEY && !process.env.ACO_ANTHROPIC_API_KEY) {
-    console.warn('Skipping integration tests - need ACO_OPENAI_API_KEY or ACO_ANTHROPIC_API_KEY');
-    return false;
+  if (!process.env.ACO_OPENAI_API_KEY && !process.env.ACO_ANTHROPIC_API_KEY && !process.env.ACO_GOOGLE_GENERATIVE_AI_API_KEY) {
+    throw new Error('Integration tests require at least one API key: ACO_OPENAI_API_KEY, ACO_ANTHROPIC_API_KEY, or ACO_GOOGLE_GENERATIVE_AI_API_KEY');
   }
   return true;
 }
@@ -42,7 +42,8 @@ test('generates quality commit messages for modified files', withTestRepo(async 
     const diff = await git.diff(['--cached']);
     expect(diff.length).toBeGreaterThan(0);
     
-    const commits = await generateCommits({ diff });
+    const result = await generateCommits({ diff });
+    const commits = result.commits;
     
     // Evaluate commit quality
     expect(commits.length).toBeGreaterThan(0);
@@ -77,7 +78,8 @@ test('handles deleted files correctly', withTestRepo(async (repo: TestRepo) => {
     await git.rm(['src/deprecated.ts', 'src/utils.ts']);
     
     const diff = await git.diff(['--cached']);
-    const commits = await generateCommits({ diff });
+    const result = await generateCommits({ diff });
+    const commits = result.commits;
     
     expect(commits.length).toBeGreaterThan(0);
     
@@ -110,7 +112,8 @@ test('handles renamed files correctly', withTestRepo(async (repo: TestRepo) => {
   try {
     const git = simpleGit(repo.path);
     const diff = await git.diff(['--cached']);
-    const commits = await generateCommits({ diff });
+    const result = await generateCommits({ diff });
+    const commits = result.commits;
     
     expect(commits.length).toBeGreaterThan(0);
     
@@ -161,8 +164,8 @@ test('filters lock files from AI but includes in commit files', withTestRepo(asy
     
     // AI should still generate good commits for non-lock files
     if (aiDiff.length > 0) {
-      const commits = await generateCommits({ diff: aiDiff });
-      expect(commits.length).toBeGreaterThan(0);
+      const result = await generateCommits({ diff: aiDiff });
+      expect(result.commits.length).toBeGreaterThan(0);
     }
     
     // Lock files should be added to commits by enhanceCommitsWithLockFiles
@@ -219,7 +222,7 @@ test('handles non-existent files gracefully during rm operations', withTestRepo(
     const git = simpleGit(repo.path);
     
     // Create a file and commit it
-    await git.writeFileSync(join(repo.path, 'test-file.txt'), 'test content');
+    await writeFile(join(repo.path, 'test-file.txt'), 'test content');
     await git.add('test-file.txt');
     await git.commit('Add test file');
     
@@ -228,7 +231,7 @@ test('handles non-existent files gracefully during rm operations', withTestRepo(
     
     // Now simulate the scenario where git thinks a file should be removed
     // but it doesn't exist in HEAD or working directory
-    await git.writeFileSync(join(repo.path, 'non-existent.txt'), 'temp');
+    await writeFile(join(repo.path, 'non-existent.txt'), 'temp');
     await git.add('non-existent.txt');
     await git.rm('non-existent.txt'); // This creates a staged deletion
     
@@ -262,7 +265,7 @@ test('handles staged deletions of non-existent files in runApp', withTestRepo(as
     const git = simpleGit(repo.path);
     
     // Create and commit a real file first
-    await git.writeFileSync(join(repo.path, 'real-file.txt'), 'real content');
+    await writeFile(join(repo.path, 'real-file.txt'), 'real content');
     await git.add('real-file.txt');
     await git.commit('Add real file');
     
@@ -273,13 +276,14 @@ test('handles staged deletions of non-existent files in runApp', withTestRepo(as
     } catch {
       // If the file doesn't exist to remove from cache, create a dummy staged deletion
       // by adding then removing a file
-      await git.writeFileSync(join(repo.path, '.cursor/rules/no-try-catch-in-tests.mdc'), 'temp');
+      await mkdir(join(repo.path, '.cursor/rules'), { recursive: true });
+      await writeFile(join(repo.path, '.cursor/rules/no-try-catch-in-tests.mdc'), 'temp');
       await git.add('.cursor/rules/no-try-catch-in-tests.mdc');
       await git.rm('.cursor/rules/no-try-catch-in-tests.mdc');
     }
     
     // Also create some real changes to commit
-    await git.writeFileSync(join(repo.path, 'src/app.ts'), 'console.log("test change");');
+    await writeFile(join(repo.path, 'src/app.ts'), 'console.log("test change");');
     await git.add('src/app.ts');
     
     // Verify we have the problematic staged deletion
@@ -296,6 +300,105 @@ test('handles staged deletions of non-existent files in runApp', withTestRepo(as
     const log = await git.log();
     expect(log.all.length).toBeGreaterThan(1); // Should have more than just initial commit
     
+  } finally {
+    process.chdir(originalCwd);
+  }
+}));
+
+test('generates commits using Google provider when configured', withTestRepo(async (repo: TestRepo) => {
+  // Require Google API key for this test
+  if (!process.env.ACO_GOOGLE_GENERATIVE_AI_API_KEY) {
+    throw new Error('Google provider test requires ACO_GOOGLE_GENERATIVE_AI_API_KEY');
+  }
+  
+  await setupModifiedFiles(repo.path);
+  
+  const originalCwd = process.cwd();
+  process.chdir(repo.path);
+  
+  try {
+    // Stage the changes
+    const git = simpleGit(repo.path);
+    await git.add(['src/app.ts', 'package.json']);
+    
+    const diff = await git.diff(['--cached']);
+    expect(diff.length).toBeGreaterThan(0);
+    
+    // Temporarily set provider to Google
+    const originalProvider = process.env.ACO_PROVIDER;
+    process.env.ACO_PROVIDER = 'google';
+    
+    try {
+      const result = await generateCommits({ diff });
+      
+      // Verify we used Google provider
+      expect(result.provider).toBe('google');
+      expect(result.commits.length).toBeGreaterThan(0);
+      
+      // Check commit quality
+      for (const commit of result.commits) {
+        expect(commit.message.length).toBeGreaterThan(5);
+        expect(commit.message.length).toBeLessThan(200);
+        expect(commit.files.length).toBeGreaterThan(0);
+      }
+    } finally {
+      // Restore original provider
+      if (originalProvider) {
+        process.env.ACO_PROVIDER = originalProvider;
+      } else {
+        delete process.env.ACO_PROVIDER;
+      }
+    }
+  } finally {
+    process.chdir(originalCwd);
+  }
+}));
+
+test('falls back from Google to other providers when Google fails', withTestRepo(async (repo: TestRepo) => {
+  // Require at least one other provider for fallback test
+  if (!process.env.ACO_OPENAI_API_KEY && !process.env.ACO_ANTHROPIC_API_KEY) {
+    throw new Error('Google fallback test requires at least one other provider (ACO_OPENAI_API_KEY or ACO_ANTHROPIC_API_KEY)');
+  }
+  
+  await setupModifiedFiles(repo.path);
+  
+  const originalCwd = process.cwd();
+  process.chdir(repo.path);
+  
+  try {
+    const git = simpleGit(repo.path);
+    await git.add(['src/app.ts', 'package.json']);
+    
+    const diff = await git.diff(['--cached']);
+    
+    // Set Google as primary provider with invalid API key
+    const originalProvider = process.env.ACO_PROVIDER;
+    const originalGoogleKey = process.env.ACO_GOOGLE_GENERATIVE_AI_API_KEY;
+    
+    process.env.ACO_PROVIDER = 'google';
+    process.env.ACO_GOOGLE_GENERATIVE_AI_API_KEY = 'invalid-key';
+    
+    try {
+      const result = await generateCommits({ diff });
+      
+      // Should have fallen back to another provider
+      expect(result.usedFallback).toBe(true);
+      expect(result.provider).not.toBe('google');
+      expect(result.commits.length).toBeGreaterThan(0);
+    } finally {
+      // Restore original values
+      if (originalProvider) {
+        process.env.ACO_PROVIDER = originalProvider;
+      } else {
+        delete process.env.ACO_PROVIDER;
+      }
+      
+      if (originalGoogleKey) {
+        process.env.ACO_GOOGLE_GENERATIVE_AI_API_KEY = originalGoogleKey;
+      } else {
+        delete process.env.ACO_GOOGLE_GENERATIVE_AI_API_KEY;
+      }
+    }
   } finally {
     process.chdir(originalCwd);
   }

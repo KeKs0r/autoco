@@ -28,9 +28,14 @@ export const EnvSchema = z
       .transform((v) =>
         v === "undefined" ? undefined : v === "null" ? undefined : v,
       ),
+    ACO_GOOGLE_GENERATIVE_AI_API_KEY: z
+      .string()
+      .transform((v) =>
+        v === "undefined" ? undefined : v === "null" ? undefined : v,
+      ),
     ACO_PROVIDER: z
-      .enum(["openai", "anthropic"])
-      .default("openai"),
+      .enum(["openai", "anthropic", "google"])
+      .optional(),
     // TODO: Extract glob patterns and other non-secret config into separate config file
     ACO_EXCLUDE_CONTENT_GLOBS: ParsedGlobArray,
   })
@@ -56,16 +61,35 @@ export async function getConfig() {
     const home = process.env["HOME"];
 
     const configs = await Promise.all([
-      loadConfig(join(gitRoot, ".env.local"), "env"),
-      loadConfig(join(gitRoot, ".env"), "env"),
-      home ? loadConfig(join(home, ".autocommit"), "json") : {},
       DEFAULT_CONFIG,
+      home ? loadConfig(join(home, ".autocommit"), "json") : {},
+      loadConfig(join(gitRoot, ".env"), "env"),
+      loadConfig(join(gitRoot, ".env.local"), "env"),
     ]);
 
-    const finalConfig = configs.reduceRight(
-      (curr, total) => ({ ...curr, ...total }),
+    // Only merge non-undefined values to allow global config to persist
+    const finalConfig = configs.reduce(
+      (curr, next) => {
+        const filtered = Object.entries(next).reduce((acc, [key, value]) => {
+          if (value !== undefined) {
+            acc[key] = value;
+          }
+          return acc;
+        }, {} as any);
+        return { ...curr, ...filtered };
+      },
       {},
     );
+    
+    if (process.env.DEBUG) {
+      console.log('Config sources:');
+      console.log('  Default:', DEFAULT_CONFIG.ACO_PROVIDER || 'not set');
+      console.log('  Global (~/.autocommit):', configs[1]?.ACO_PROVIDER || 'not set');
+      console.log('  Project (.env):', configs[2]?.ACO_PROVIDER || 'not set');
+      console.log('  Local (.env.local):', configs[3]?.ACO_PROVIDER || 'not set');
+      console.log('  Final provider:', finalConfig.ACO_PROVIDER);
+    }
+    
     logger.debug("finalConfig", finalConfig);
     validateConfig(finalConfig);
     cachedConfig = finalConfig;
@@ -116,21 +140,27 @@ function validateConfig(config: Env) {
   const provider = config.ACO_PROVIDER || "openai";
   const hasOpenAI = !!config.ACO_OPENAI_API_KEY;
   const hasAnthropic = !!config.ACO_ANTHROPIC_API_KEY;
+  const hasGoogle = !!config.ACO_GOOGLE_GENERATIVE_AI_API_KEY;
   
   // Check if we have at least one API key
-  if (!hasOpenAI && !hasAnthropic) {
+  if (!hasOpenAI && !hasAnthropic && !hasGoogle) {
     logger.error("You need to provide at least one API key:");
     logger.error("- ACO_OPENAI_API_KEY for OpenAI provider");
     logger.error("- ACO_ANTHROPIC_API_KEY for Anthropic provider");
+    logger.error("- ACO_GOOGLE_GENERATIVE_AI_API_KEY for Google provider");
     throw new Error("No API keys configured");
   }
   
   // Warn if primary provider doesn't have API key (fallback will be used)
-  if (provider === "openai" && !hasOpenAI && hasAnthropic) {
-    logger.warn("Primary provider (OpenAI) not configured, will use Anthropic as fallback");
+  if (provider === "openai" && !hasOpenAI && (hasAnthropic || hasGoogle)) {
+    logger.warn("Primary provider (OpenAI) not configured, will use fallback");
   }
   
-  if (provider === "anthropic" && !hasAnthropic && hasOpenAI) {
-    logger.warn("Primary provider (Anthropic) not configured, will use OpenAI as fallback");
+  if (provider === "anthropic" && !hasAnthropic && (hasOpenAI || hasGoogle)) {
+    logger.warn("Primary provider (Anthropic) not configured, will use fallback");
+  }
+  
+  if (provider === "google" && !hasGoogle && (hasOpenAI || hasAnthropic)) {
+    logger.warn("Primary provider (Google) not configured, will use fallback");
   }
 }
