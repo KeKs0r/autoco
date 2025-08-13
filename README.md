@@ -28,14 +28,12 @@ Create `.env` in your project root:
 # Required: Choose one or more providers
 ACO_OPENAI_API_KEY=your_openai_key
 ACO_ANTHROPIC_API_KEY=your_anthropic_key
-ACO_GOOGLE_GENERATIVE_AI_API_KEY=your_google_key  # Note: Google provider is experimental
+ACO_GOOGLE_GENERATIVE_AI_API_KEY=your_google_key
 
 # Optional settings
 ACO_PROVIDER=openai              # or "anthropic" or "google" (default: openai)
 ACO_GITMOJI=true                 # Use gitmoji in commits (default: false)
 ```
-
-> **Note:** The Google Gemini provider is experimental and may have limitations with structured output generation. For best results, use OpenAI or Anthropic as your primary provider.
 
 ### Global configuration
 
