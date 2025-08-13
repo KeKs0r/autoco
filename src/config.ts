@@ -28,8 +28,13 @@ export const EnvSchema = z
       .transform((v) =>
         v === "undefined" ? undefined : v === "null" ? undefined : v,
       ),
+    ACO_GOOGLE_GENERATIVE_AI_API_KEY: z
+      .string()
+      .transform((v) =>
+        v === "undefined" ? undefined : v === "null" ? undefined : v,
+      ),
     ACO_PROVIDER: z
-      .enum(["openai", "anthropic"])
+      .enum(["openai", "anthropic", "google"])
       .default("openai"),
     // TODO: Extract glob patterns and other non-secret config into separate config file
     ACO_EXCLUDE_CONTENT_GLOBS: ParsedGlobArray,
@@ -116,21 +121,27 @@ function validateConfig(config: Env) {
   const provider = config.ACO_PROVIDER || "openai";
   const hasOpenAI = !!config.ACO_OPENAI_API_KEY;
   const hasAnthropic = !!config.ACO_ANTHROPIC_API_KEY;
+  const hasGoogle = !!config.ACO_GOOGLE_GENERATIVE_AI_API_KEY;
   
   // Check if we have at least one API key
-  if (!hasOpenAI && !hasAnthropic) {
+  if (!hasOpenAI && !hasAnthropic && !hasGoogle) {
     logger.error("You need to provide at least one API key:");
     logger.error("- ACO_OPENAI_API_KEY for OpenAI provider");
     logger.error("- ACO_ANTHROPIC_API_KEY for Anthropic provider");
+    logger.error("- ACO_GOOGLE_GENERATIVE_AI_API_KEY for Google provider");
     throw new Error("No API keys configured");
   }
   
   // Warn if primary provider doesn't have API key (fallback will be used)
-  if (provider === "openai" && !hasOpenAI && hasAnthropic) {
-    logger.warn("Primary provider (OpenAI) not configured, will use Anthropic as fallback");
+  if (provider === "openai" && !hasOpenAI && (hasAnthropic || hasGoogle)) {
+    logger.warn("Primary provider (OpenAI) not configured, will use fallback");
   }
   
-  if (provider === "anthropic" && !hasAnthropic && hasOpenAI) {
-    logger.warn("Primary provider (Anthropic) not configured, will use OpenAI as fallback");
+  if (provider === "anthropic" && !hasAnthropic && (hasOpenAI || hasGoogle)) {
+    logger.warn("Primary provider (Anthropic) not configured, will use fallback");
+  }
+  
+  if (provider === "google" && !hasGoogle && (hasOpenAI || hasAnthropic)) {
+    logger.warn("Primary provider (Google) not configured, will use fallback");
   }
 }

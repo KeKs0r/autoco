@@ -1,5 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { getSystemPrompt } from "../prompts";
@@ -43,7 +44,7 @@ export async function generateCommits({
           prompt: diff,
         });
         return {
-          commits: validateAndCleanCommits(object.commits, diff),
+          commits: validateAndCleanCommits((object as any).commits, diff),
           provider,
           usedFallback: attemptCount > 0
         };
@@ -58,7 +59,23 @@ export async function generateCommits({
           prompt: diff,
         });
         return {
-          commits: validateAndCleanCommits(object.commits, diff),
+          commits: validateAndCleanCommits((object as any).commits, diff),
+          provider,
+          usedFallback: attemptCount > 0
+        };
+      } else if (provider === "google" && config.ACO_GOOGLE_GENERATIVE_AI_API_KEY) {
+        const google = createGoogleGenerativeAI({
+          apiKey: config.ACO_GOOGLE_GENERATIVE_AI_API_KEY,
+        });
+        const { object } = await generateObject({
+          model: google("gemini-2.0-flash-001") as any,
+          schema,
+          system,
+          prompt: diff,
+          mode: 'json',
+        });
+        return {
+          commits: validateAndCleanCommits((object as any).commits, diff),
           provider,
           usedFallback: attemptCount > 0
         };
@@ -121,6 +138,10 @@ function getAvailableProviders(config: any): string[] {
   
   if (config.ACO_OPENAI_API_KEY) {
     providers.push("openai");
+  }
+  
+  if (config.ACO_GOOGLE_GENERATIVE_AI_API_KEY) {
+    providers.push("google");
   }
   
   return providers;
