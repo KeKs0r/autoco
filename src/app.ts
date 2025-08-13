@@ -165,7 +165,8 @@ export async function runApp({ force = false }: RunAppOptions = {}) {
   const s = spinner();
   s.start("Generating commits...");
   const result = await generateCommits({ diff: diffResult.diff });
-  const providerName = result.provider === "anthropic" ? "Anthropic" : "OpenAI";
+  const providerName = result.provider === "anthropic" ? "Anthropic" : 
+                       result.provider === "google" ? "Google" : "OpenAI";
   const fallbackText = result.usedFallback ? ` (Fallback: ${providerName})` : ` (${providerName})`;
   s.stop(`Generated commits${fallbackText}`);
 

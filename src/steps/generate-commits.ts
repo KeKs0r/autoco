@@ -29,6 +29,11 @@ export async function generateCommits({
   // Determine available providers for fallback
   const availableProviders = getAvailableProviders(config);
   
+  if (process.env.DEBUG) {
+    console.log(`Primary provider: ${primaryProvider}`);
+    console.log(`Available providers: ${availableProviders.join(', ')}`);
+  }
+  
   // Try primary provider first, then fallback
   let attemptCount = 0;
   for (const provider of [primaryProvider, ...availableProviders.filter(p => p !== primaryProvider)]) {
@@ -80,10 +85,14 @@ export async function generateCommits({
           usedFallback: attemptCount > 0
         };
       }
-    } catch (error) {
+    } catch (error: any) {
       // If this is the last available provider, throw the error
       const isLastProvider = provider === availableProviders[availableProviders.length - 1] ||
                             (availableProviders.length === 1 && provider === primaryProvider);
+      
+      if (process.env.DEBUG) {
+        console.log(`Provider ${provider} failed: ${error.message}`);
+      }
       
       if (isLastProvider) {
         throw error;

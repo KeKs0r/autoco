@@ -35,7 +35,7 @@ export const EnvSchema = z
       ),
     ACO_PROVIDER: z
       .enum(["openai", "anthropic", "google"])
-      .default("openai"),
+      .optional(),
     // TODO: Extract glob patterns and other non-secret config into separate config file
     ACO_EXCLUDE_CONTENT_GLOBS: ParsedGlobArray,
   })
@@ -61,16 +61,35 @@ export async function getConfig() {
     const home = process.env["HOME"];
 
     const configs = await Promise.all([
-      loadConfig(join(gitRoot, ".env.local"), "env"),
-      loadConfig(join(gitRoot, ".env"), "env"),
-      home ? loadConfig(join(home, ".autocommit"), "json") : {},
       DEFAULT_CONFIG,
+      home ? loadConfig(join(home, ".autocommit"), "json") : {},
+      loadConfig(join(gitRoot, ".env"), "env"),
+      loadConfig(join(gitRoot, ".env.local"), "env"),
     ]);
 
-    const finalConfig = configs.reduceRight(
-      (curr, total) => ({ ...curr, ...total }),
+    // Only merge non-undefined values to allow global config to persist
+    const finalConfig = configs.reduce(
+      (curr, next) => {
+        const filtered = Object.entries(next).reduce((acc, [key, value]) => {
+          if (value !== undefined) {
+            acc[key] = value;
+          }
+          return acc;
+        }, {} as any);
+        return { ...curr, ...filtered };
+      },
       {},
     );
+    
+    if (process.env.DEBUG) {
+      console.log('Config sources:');
+      console.log('  Default:', DEFAULT_CONFIG.ACO_PROVIDER || 'not set');
+      console.log('  Global (~/.autocommit):', configs[1]?.ACO_PROVIDER || 'not set');
+      console.log('  Project (.env):', configs[2]?.ACO_PROVIDER || 'not set');
+      console.log('  Local (.env.local):', configs[3]?.ACO_PROVIDER || 'not set');
+      console.log('  Final provider:', finalConfig.ACO_PROVIDER);
+    }
+    
     logger.debug("finalConfig", finalConfig);
     validateConfig(finalConfig);
     cachedConfig = finalConfig;
