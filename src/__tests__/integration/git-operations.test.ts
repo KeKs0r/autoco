@@ -305,8 +305,7 @@ test('handles staged deletions of non-existent files in runApp', withTestRepo(as
   }
 }));
 
-test.skip('generates commits using Google provider when configured', withTestRepo(async (repo: TestRepo) => {
-  // Skip: Google provider has known issues with structured output generation
+test('generates commits using Google provider when configured', withTestRepo(async (repo: TestRepo) => {
   // Require Google API key for this test
   if (!process.env.ACO_GOOGLE_GENERATIVE_AI_API_KEY) {
     throw new Error('Google provider test requires ACO_GOOGLE_GENERATIVE_AI_API_KEY');
@@ -355,8 +354,7 @@ test.skip('generates commits using Google provider when configured', withTestRep
   }
 }));
 
-test.skip('falls back from Google to other providers when Google fails', withTestRepo(async (repo: TestRepo) => {
-  // Skip: Google provider has known issues with structured output generation
+test('falls back from Google to other providers when Google fails', withTestRepo(async (repo: TestRepo) => {
   // Require at least one other provider for fallback test
   if (!process.env.ACO_OPENAI_API_KEY && !process.env.ACO_ANTHROPIC_API_KEY) {
     throw new Error('Google fallback test requires at least one other provider (ACO_OPENAI_API_KEY or ACO_ANTHROPIC_API_KEY)');
